@@ -1,0 +1,16 @@
+<table class="tbl">
+  <thead><tr><th>Employee</th><th>Department</th><th>Time</th><th>Method</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for p in feed %}
+    <tr>
+      <td><div class="who"><span class="avatar av{{ p.color }}">{{ p.initials }}</span><div><b>{{ p.name }}</b></div></div></td>
+      <td>{{ p.department }}</td>
+      <td>{{ p.time }}<br><small class="muted">{{ p.day }}</small></td>
+      <td><span class="badge m-{{ p.method|lower }}">{{ p.method }}</span></td>
+      <td><span class="sdot s-{{ p.status }}">{{ p.label }}</span></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="empty">No punches yet. They appear here as soon as someone scans a finger.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>

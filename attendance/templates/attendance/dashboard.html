@@ -1,0 +1,163 @@
+{% extends "attendance/base.html" %}
+{% load static %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+{% if summary.off_day %}<div class="msg">Today is a weekly off day, so nobody is counted absent.</div>{% endif %}
+
+<section class="grid kpis">
+  <div class="card kpi" style="--c:var(--blue)">
+    <div class="lbl">Total employees</div>
+    <div class="val">{{ summary.total }}</div>
+    <div class="sub">Active workforce{% if enrolling %} · {{ enrolling }} enrolling/removing{% endif %}</div>
+  </div>
+  <div class="card kpi" style="--c:var(--teal)">
+    <div class="lbl">Present today</div>
+    <div class="val">{{ summary.present }}<small>{{ summary.present_pct }}%</small></div>
+    <div class="sub">{{ summary.on_time }} on time</div>
+  </div>
+  <div class="card kpi" style="--c:var(--orange)">
+    <div class="lbl">Late arrivals</div>
+    <div class="val">{{ summary.late }}</div>
+    <div class="sub">{{ summary.late_pct }}% of those present</div>
+  </div>
+  <div class="card kpi" style="--c:var(--purple)">
+    <div class="lbl">On leave</div>
+    <div class="val">{{ summary.leave }}</div>
+    <div class="sub">Planned {{ summary.leave_planned }} · Unplanned {{ summary.leave_unplanned }}</div>
+  </div>
+  <div class="card kpi" style="--c:var(--pink)">
+    <div class="lbl">Absent</div>
+    <div class="val">{{ summary.absent }}</div>
+    <div class="sub">Missing check-in</div>
+  </div>
+</section>
+
+<section class="grid row2">
+  <div class="card navy-card">
+    <div class="cap">Today · {{ today|date:"D, d M Y" }}</div>
+    <div class="big">{{ summary.present }}<span style="font-size:22px;color:#9aa6c4"> / {{ summary.total }}</span></div>
+    <div class="cap">employees checked in</div>
+    <div class="bar"><i style="width:{{ summary.present_pct }}%"></i></div>
+    <ul>
+      <li><span>On time</span><b>{{ summary.on_time }}</b></li>
+      <li><span>Late</span><b>{{ summary.late }}</b></li>
+      <li><span>Absent</span><b>{{ summary.absent }}</b></li>
+      <li><span>Fingerprint device</span><b><span class="dot {% if device_online %}on{% endif %}"></span>{% if device_online %}Online{% else %}Offline{% endif %}</b></li>
+    </ul>
+    {% if device_seen and not device_online %}<div class="cap" style="margin-top:12px">Last seen {{ device_seen|date:"d M, H:i" }}</div>{% endif %}
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div><h2 id="trend-title">Attendance trend</h2><div class="hint" id="trend-hint">Employees per day by status</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select class="pill" id="trend-range" aria-label="Range"><option value="7">Last 7 days</option><option value="14" selected>Last 14 days</option><option value="30">Last 30 days</option></select>
+        <button class="pillbtn" id="trend-mode" type="button">view monthly</button>
+      </div>
+    </div>
+    <div class="chart-box"><canvas id="trendChart"></canvas></div>
+    <div class="legend" id="trend-legend">
+      <span><i style="background:var(--teal)"></i>On time</span><span><i style="background:var(--orange)"></i>Late</span>
+      <span><i style="background:var(--pink)"></i>Absent</span><span><i style="background:var(--purple)"></i>On leave</span>
+    </div>
+  </div>
+</section>
+
+<section class="grid row3">
+  <div class="card">
+    <h2>Today's status</h2><div class="hint">Present · Late · Absent · On leave</div>
+    <div class="chart-box sm"><canvas id="donutChart"></canvas></div>
+    <div class="legend">
+      <span><i style="background:var(--teal)"></i>On time {{ summary.on_time }}</span><span><i style="background:var(--orange)"></i>Late {{ summary.late }}</span>
+      <span><i style="background:var(--pink)"></i>Absent {{ summary.absent }}</span><span><i style="background:var(--purple)"></i>Leave {{ summary.leave }}</span>
+    </div>
+  </div>
+  <div class="card cal">
+    <h2>{{ month_label }}</h2>
+    <table>
+      <thead><tr>{% for w in weekdays %}<th{% if forloop.first %} class="sun"{% endif %}>{{ w }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for week in calendar %}<tr>{% for c in week %}<td class="{% if c.other %}other {% endif %}{% if c.sunday %}sun {% endif %}{% if c.today %}today {% endif %}{{ c.level }}"><span>{{ c.day }}</span></td>{% endfor %}</tr>{% endfor %}
+      </tbody>
+    </table>
+    <div class="key"><span><i style="background:#fff"></i>90%+ present</span><span><i style="background:var(--orange)"></i>60–89%</span><span><i style="background:var(--pink)"></i>under 60%</span></div>
+  </div>
+  <div class="card">
+    <h2>Absence by department</h2><div class="hint">Last 30 days · % of expected days missed</div>
+    <div class="chart-box sm"><canvas id="deptChart"></canvas></div>
+  </div>
+</section>
+
+<section class="grid row4">
+  <div class="card">
+    <div class="card-head"><div><h2>Live check-ins</h2><div class="hint">Updates every 10 seconds</div></div><span class="sdot s-ontime" style="font-size:11px">LIVE</span></div>
+    <div class="scroll" id="feed" data-url="{% url 'feed' %}">{% include "attendance/_feed.html" %}</div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>Approvals</h2><a class="pillbtn orange" href="{% url 'requests' %}">View all</a></div>
+    <div class="sec-title">Leave requests</div>
+    <ul class="list">
+      {% for lv in pending_leaves %}
+      <li>
+        <span class="avatar av{{ lv.employee.color_index }}">{{ lv.employee.initials }}</span>
+        <div class="body"><b>{{ lv.employee.name }}</b>
+          <small>{{ lv.get_leave_type_display }} · {{ lv.start_date|date:"d M" }}{% if lv.days > 1 %}–{{ lv.end_date|date:"d M" }}{% endif %} · {% if lv.planned %}Planned{% else %}Unplanned{% endif %}</small>
+          <div class="acts">
+            <form method="post" action="{% url 'leave_decide' lv.pk 'approve' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="pillbtn teal" type="submit">Approve</button></form>
+            <form method="post" action="{% url 'leave_decide' lv.pk 'reject' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="pillbtn" type="submit">Reject</button></form>
+          </div>
+        </div>
+      </li>
+      {% empty %}<li class="empty" style="display:block;width:100%">No pending leave requests.</li>{% endfor %}
+    </ul>
+    <div class="sec-title">Manual adjustments</div>
+    <ul class="list">
+      {% for a in pending_adjust %}
+      <li>
+        <span class="avatar av{{ a.employee.color_index }}">{{ a.employee.initials }}</span>
+        <div class="body"><b>{{ a.employee.name }}</b>
+          <small>{{ a.date|date:"d M" }} · in {{ a.check_in|time:"H:i"|default:"–" }} · out {{ a.check_out|time:"H:i"|default:"–" }}</small>
+          <div class="acts">
+            <form method="post" action="{% url 'adjust_decide' a.pk 'approve' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="pillbtn teal" type="submit">Approve</button></form>
+            <form method="post" action="{% url 'adjust_decide' a.pk 'reject' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="pillbtn" type="submit">Reject</button></form>
+          </div>
+        </div>
+      </li>
+      {% empty %}<li class="empty" style="display:block;width:100%">No pending adjustments.</li>{% endfor %}
+    </ul>
+    <div class="sec-title">Export report (this month)</div>
+    <div class="row-actions">
+      <a class="pillbtn navy" href="{% url 'reports' %}?start={{ today|date:'Y-m' }}-01&end={{ today|date:'Y-m-d' }}&format=csv">CSV</a>
+      <a class="pillbtn navy" href="{% url 'reports' %}?start={{ today|date:'Y-m' }}-01&end={{ today|date:'Y-m-d' }}&format=xlsx">Excel</a>
+      <a class="pillbtn navy" href="{% url 'reports' %}?start={{ today|date:'Y-m' }}-01&end={{ today|date:'Y-m-d' }}&format=pdf">PDF</a>
+    </div>
+  </div>
+</section>
+
+<section class="grid row4">
+  <div class="card">
+    <h2>Team today</h2><div class="hint">Late and absent first</div>
+    <div class="scroll"><table class="tbl">
+      <thead><tr><th>Employee</th><th>Department</th><th>Check-in</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for r in status_rows %}
+        <tr><td><div class="who"><span class="avatar av{{ r.color }}">{{ r.initials }}</span><b>{{ r.name }}</b></div></td>
+        <td>{{ r.department|default:"-" }}</td><td>{{ r.check_in|default:"–" }}</td>
+        <td><span class="sdot s-{{ r.status }}">{{ r.status|capfirst }}</span></td></tr>
+      {% empty %}<tr><td colspan="4" class="empty">No employees yet. Add some on the Employees page.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  <div class="card">
+    <h2>Tardiness pattern</h2><div class="hint">Late arrivals by weekday · last 30 days</div>
+    <div class="chart-box sm"><canvas id="tardyChart"></canvas></div>
+    <div class="sec-title">Most late</div>
+    <ul class="list">
+      {% for t in top_late %}<li><div class="body"><b>{{ t.name }}</b><small>{{ t.department|default:"-" }}</small></div><span class="pillbtn orange" style="align-self:center">{{ t.late }}×</span></li>
+      {% empty %}<li class="empty" style="display:block;width:100%">No late arrivals.</li>{% endfor %}
+    </ul>
+  </div>
+</section>
+
+{{ chart|json_script:"chart-data" }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'attendance/charts.js' %}"></script>{% endblock %}

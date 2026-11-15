@@ -1,0 +1,36 @@
+{% extends "attendance/base.html" %}
+{% block title %}Reports{% endblock %}
+{% block heading %}REPORTS{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Attendance report</h2>
+  <form method="get" action="{% url 'reports' %}">
+    <div class="form-grid" style="margin-top:10px">
+      <div><label>From</label>{{ form.start }}</div>
+      <div><label>To</label>{{ form.end }}</div>
+      <div><button class="pillbtn navy" type="submit" style="padding:10px 18px">Preview</button></div>
+    </div>
+    {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+    {% if form.start.errors or form.end.errors %}<ul class="errorlist"><li>Enter a valid start and end date.</li></ul>{% endif %}
+  </form>
+  {% if has_range %}
+  <div class="row-actions" style="margin-top:14px">
+    <a class="pillbtn teal" href="?{{ qs }}&format=csv">Download CSV</a>
+    <a class="pillbtn teal" href="?{{ qs }}&format=xlsx">Download Excel</a>
+    <a class="pillbtn teal" href="?{{ qs }}&format=pdf">Download PDF</a>
+  </div>
+  {% endif %}
+</div>
+{% if has_range %}
+<div class="card">
+  <div class="hint">{{ total }} row{{ total|pluralize }}{% if total > 300 %} – showing the first 300; the downloads contain everything{% endif %}</div>
+  <div class="scroll"><table class="tbl">
+    <thead><tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for r in rows %}<tr>{% for c in r %}<td>{{ c }}</td>{% endfor %}</tr>
+    {% empty %}<tr><td colspan="7" class="empty">No data in this range.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+{% endblock %}

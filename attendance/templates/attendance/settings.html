@@ -1,0 +1,29 @@
+{% extends "attendance/base.html" %}
+{% block title %}Settings{% endblock %}
+{% block heading %}SETTINGS{% endblock %}
+{% block content %}
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+  <div class="card">
+    <h2>Office hours</h2>
+    <div class="hint">Someone is “late” if their first punch is after start time + grace period.</div>
+    <form method="post">{% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="form-grid">
+        <div><label for="id_start_time">{{ form.start_time.label }}</label>{{ form.start_time }}{{ form.start_time.errors }}</div>
+        <div><label for="id_grace_minutes">{{ form.grace_minutes.label }}</label>{{ form.grace_minutes }}{{ form.grace_minutes.errors }}</div>
+      </div>
+      <div style="margin-top:14px"><label>{{ form.workdays.label }}</label><div class="checks">{{ form.workdays }}</div>{{ form.workdays.errors }}</div>
+      <div style="margin-top:16px"><button class="pillbtn teal" type="submit" style="padding:10px 18px">Save settings</button></div>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Fingerprint device</h2>
+    <p><span class="dot {% if device_online %}on{% endif %}"></span><b>{% if device_online %}Online{% else %}Offline{% endif %}</b>
+      {% if device_seen %}<span class="muted"> · last contact {{ device_seen|date:"d M Y, H:i:s" }}</span>{% endif %}</p>
+    <p class="muted">Put these two values in the ESP8266 sketch:</p>
+    <p><span class="mono">SERVER_URL = "{{ server_url }}"</span></p>
+    <p><span class="mono">DEVICE_KEY = (the DEVICE_KEY environment variable)</span></p>
+    {% if not key_set %}<div class="msg error">DEVICE_KEY is not set on the server, so the device is rejected. Set it and restart.</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

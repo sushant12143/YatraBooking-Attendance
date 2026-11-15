@@ -1,0 +1,51 @@
+{% extends "attendance/base.html" %}
+{% block title %}Employees{% endblock %}
+{% block heading %}EMPLOYEES{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-head"><div><h2>Add employee</h2>
+    <div class="hint">The device picks this up within ~10 seconds and asks the person to scan their finger.
+      <span class="dot {% if device_online %}on{% endif %}"></span>Device {% if device_online %}online{% else %}offline – enrollment starts when it reconnects{% endif %}</div></div></div>
+  <form method="post" action="{% url 'employee_add' %}">
+    {% csrf_token %}
+    <div class="form-grid">
+      <div><label for="id_name">Full name *</label>{{ form.name }}</div>
+      <div><label for="id_department">Department</label><input type="text" name="department" id="id_department" list="depts" maxlength="60">
+        <datalist id="depts">{% for d in departments %}<option value="{{ d.name }}">{% endfor %}</datalist></div>
+      <div><label for="id_designation">Designation</label>{{ form.designation }}</div>
+      <div><label for="id_email">Email</label>{{ form.email }}</div>
+      <div><label for="id_phone">Phone</label>{{ form.phone }}</div>
+      <div><button class="pillbtn teal" type="submit" style="padding:10px 18px">Add &amp; enroll fingerprint</button></div>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>All employees{% if q %} matching “{{ q }}”{% endif %}</h2></div>
+  <div class="scroll"><table class="tbl">
+    <thead><tr><th>Employee</th><th>Department</th><th>Designation</th><th>Finger ID</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for e in employees %}
+      <tr>
+        <td><div class="who"><span class="avatar av{{ e.color_index }}">{{ e.initials }}</span><div><b>{{ e.name }}</b><small>{{ e.email|default:e.phone }}</small></div></div></td>
+        <td>{{ e.department.name|default:"-" }}</td>
+        <td>{{ e.designation|default:"-" }}</td>
+        <td>{% if e.finger_id %}<span class="mono">#{{ e.finger_id }}</span>{% else %}–{% endif %}</td>
+        <td><span class="sdot s-{{ e.status }}">{{ e.get_status_display }}</span></td>
+        <td>
+          <div class="row-actions" style="justify-content:flex-end">
+            {% if e.status != 'deleting' %}
+            <form method="post" action="{% url 'employee_delete' e.pk %}" onsubmit="return confirm('Remove {{ e.name|escapejs }} and delete the fingerprint from the sensor?')">{% csrf_token %}<button class="pillbtn" type="submit">Remove</button></form>
+            {% else %}
+            <form method="post" action="{% url 'employee_delete' e.pk %}" onsubmit="return confirm('Force remove without waiting for the device? The fingerprint may stay on the sensor.')">{% csrf_token %}<input type="hidden" name="force" value="1"><button class="pillbtn ghost" type="submit">Force remove</button></form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="empty">{% if q %}No employees match your search.{% else %}No employees yet. Add the first one above.{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

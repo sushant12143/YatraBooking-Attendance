@@ -1,0 +1,23 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · Attendance System</title>
+<link rel="stylesheet" href="{% static 'attendance/style.css' %}">
+</head>
+<body>
+<div class="login-wrap">
+  <form class="login" method="post">
+    {% csrf_token %}
+    <h1>Attendance System</h1>
+    <div class="rule"></div>
+    {% if form.errors %}<div class="msg error" style="margin-bottom:14px">Wrong username or password.</div>{% endif %}
+    <div class="field"><label for="id_username">Username</label>{{ form.username }}</div>
+    <div class="field"><label for="id_password">Password</label>{{ form.password }}</div>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="pillbtn" type="submit">Sign in</button>
+  </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,77 @@
+{% extends "attendance/base.html" %}
+{% block title %}Requests{% endblock %}
+{% block heading %}REQUESTS{% endblock %}
+{% block content %}
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+  <div class="card">
+    <h2>New leave request</h2>
+    <form method="post" action="{% url 'leave_add' %}">{% csrf_token %}
+      <div class="form-grid" style="margin-top:10px">
+        <div><label>Employee</label>{{ leave_form.employee }}</div>
+        <div><label>Type</label>{{ leave_form.leave_type }}</div>
+        <div><label>From</label>{{ leave_form.start_date }}</div>
+        <div><label>To</label>{{ leave_form.end_date }}</div>
+        <div style="grid-column:1/-1"><label>Reason</label>{{ leave_form.reason }}</div>
+        <div class="checks"><label>{{ leave_form.planned }} Planned leave</label></div>
+        <div><button class="pillbtn teal" type="submit" style="padding:10px 18px">Submit</button></div>
+      </div>
+    </form>
+  </div>
+  <div class="card">
+    <h2>New attendance adjustment</h2>
+    <form method="post" action="{% url 'adjust_add' %}">{% csrf_token %}
+      <div class="form-grid" style="margin-top:10px">
+        <div><label>Employee</label>{{ adjust_form.employee }}</div>
+        <div><label>Date</label>{{ adjust_form.date }}</div>
+        <div><label>Check-in</label>{{ adjust_form.check_in }}</div>
+        <div><label>Check-out</label>{{ adjust_form.check_out }}</div>
+        <div style="grid-column:1/-1"><label>Reason</label>{{ adjust_form.reason }}</div>
+        <div><button class="pillbtn teal" type="submit" style="padding:10px 18px">Submit</button></div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Leave requests</h2>
+  <div class="scroll"><table class="tbl">
+    <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for lv in leaves %}
+      <tr>
+        <td><div class="who"><span class="avatar av{{ lv.employee.color_index }}">{{ lv.employee.initials }}</span><b>{{ lv.employee.name }}</b></div></td>
+        <td>{{ lv.get_leave_type_display }} · {% if lv.planned %}Planned{% else %}Unplanned{% endif %}</td>
+        <td>{{ lv.start_date|date:"d M Y" }}{% if lv.days > 1 %} – {{ lv.end_date|date:"d M Y" }}{% endif %} <small class="muted">({{ lv.days }}d)</small></td>
+        <td>{{ lv.reason|default:"-" }}</td>
+        <td><span class="sdot s-{{ lv.status }}">{{ lv.get_status_display }}</span></td>
+        <td>{% if lv.status == 'pending' %}<div class="row-actions" style="justify-content:flex-end">
+          <form method="post" action="{% url 'leave_decide' lv.pk 'approve' %}">{% csrf_token %}<button class="pillbtn teal" type="submit">Approve</button></form>
+          <form method="post" action="{% url 'leave_decide' lv.pk 'reject' %}">{% csrf_token %}<button class="pillbtn" type="submit">Reject</button></form></div>{% endif %}</td>
+      </tr>
+    {% empty %}<tr><td colspan="6" class="empty">No leave requests.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card">
+  <h2>Manual attendance adjustments</h2>
+  <div class="hint">Approved adjustments count as a check-in/out when calculating attendance.</div>
+  <div class="scroll"><table class="tbl">
+    <thead><tr><th>Employee</th><th>Date</th><th>Check-in</th><th>Check-out</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for a in adjustments %}
+      <tr>
+        <td><div class="who"><span class="avatar av{{ a.employee.color_index }}">{{ a.employee.initials }}</span><b>{{ a.employee.name }}</b></div></td>
+        <td>{{ a.date|date:"d M Y" }}</td>
+        <td>{{ a.check_in|time:"H:i"|default:"–" }}</td><td>{{ a.check_out|time:"H:i"|default:"–" }}</td>
+        <td>{{ a.reason|default:"-" }}</td>
+        <td><span class="sdot s-{{ a.status }}">{{ a.get_status_display }}</span></td>
+        <td>{% if a.status == 'pending' %}<div class="row-actions" style="justify-content:flex-end">
+          <form method="post" action="{% url 'adjust_decide' a.pk 'approve' %}">{% csrf_token %}<button class="pillbtn teal" type="submit">Approve</button></form>
+          <form method="post" action="{% url 'adjust_decide' a.pk 'reject' %}">{% csrf_token %}<button class="pillbtn" type="submit">Reject</button></form></div>{% endif %}</td>
+      </tr>
+    {% empty %}<tr><td colspan="7" class="empty">No adjustment requests.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}
